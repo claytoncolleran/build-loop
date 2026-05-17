@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Build Loop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0a0e13;--ink-2:#0d131a;--panel:#10171f;--panel-2:#0e141b;
+    --line:rgba(150,180,210,.12);--line-soft:rgba(150,180,210,.07);
+    --text:#cdd7e1;--muted:#67757f;--dim:#46525c;
+    --signal:#f3b13c;--signal-deep:#c98a1f;--cool:#54cabb;--human:#8aa0b4;--radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--ink);color:var(--text)}
+  body{font-family:"IBM Plex Mono",ui-monospace,monospace;-webkit-font-smoothing:antialiased;padding:54px 44px 58px;display:flex;justify-content:center;min-height:100vh;
+    background:radial-gradient(1200px 700px at 50% -10%,rgba(243,177,60,.06),transparent 60%),radial-gradient(1000px 900px at 90% 110%,rgba(84,202,187,.05),transparent 55%),linear-gradient(180deg,var(--ink),var(--ink-2))}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(var(--line-soft) 1px,transparent 1px),linear-gradient(90deg,var(--line-soft) 1px,transparent 1px);background-size:120px 120px,120px 120px;mask-image:radial-gradient(circle at 50% 28%,black,transparent 93%)}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.2'/%3E%3C/svg%3E")}
+  .sheet{position:relative;z-index:1;width:100%;max-width:1480px}
+
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:40px;padding-bottom:24px;margin-bottom:34px;border-bottom:1px solid var(--line);animation:rise .7s both}
+  .kicker{font-size:11px;letter-spacing:.42em;color:var(--signal);text-transform:uppercase;margin-bottom:16px;font-weight:500}
+  h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:70px;line-height:.92;letter-spacing:-.025em;color:#f1f5f8}
+  h1 .s{color:var(--signal)}
+  .lede{max-width:540px;font-size:13px;line-height:1.85;color:var(--muted);text-align:right}
+  .lede b{color:var(--text);font-weight:500}
+  .chips{display:flex;gap:8px;justify-content:flex-end;margin-top:15px;flex-wrap:wrap}
+  .chip{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:6px 11px;border-radius:999px}
+
+  .tag{display:flex;align-items:center;gap:14px;font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--dim);margin:0 0 18px}
+  .tag::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+  .tag b{color:var(--signal);font-weight:500}
+
+  /* five moves pipeline */
+  .pipeline{display:flex;align-items:stretch;margin-bottom:40px}
+  .stage{flex:1;position:relative;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:var(--radius);padding:20px 20px 18px;display:flex;flex-direction:column;animation:rise .7s both}
+  .stage:nth-child(3){animation-delay:.06s}.stage:nth-child(5){animation-delay:.12s}.stage:nth-child(7){animation-delay:.18s}.stage:nth-child(9){animation-delay:.24s}
+  .stage::before,.stage::after{content:"";position:absolute;width:8px;height:8px}
+  .stage::before{top:8px;left:8px;border-top:1px solid var(--signal-deep);border-left:1px solid var(--signal-deep);opacity:.5}
+  .stage::after{bottom:8px;right:8px;border-bottom:1px solid var(--signal-deep);border-right:1px solid var(--signal-deep);opacity:.5}
+  .idx{font-size:11px;color:var(--dim);letter-spacing:.2em;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+  .pin{width:7px;height:7px;border-radius:50%;background:var(--signal);box-shadow:0 0 0 4px rgba(243,177,60,.12)}
+  .cmd{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:24px;color:#eef3f7;margin-bottom:3px}
+  .cmd .s{color:var(--signal)}
+  .role{font-size:11px;color:var(--cool);margin-bottom:14px;line-height:1.5}
+  .stage ul{list-style:none;display:flex;flex-direction:column;gap:9px;flex:1}
+  .stage li{font-size:11.5px;line-height:1.6;color:var(--muted);padding-left:14px;position:relative}
+  .stage li::before{content:"";position:absolute;left:0;top:8px;width:5px;height:1px;background:var(--signal)}
+  .stage li b{color:var(--text);font-weight:500}
+  .sk{margin-top:16px;padding-top:12px;border-top:1px solid var(--line-soft);font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+  .sk span{color:var(--signal-deep)}
+  .roles{display:flex;flex-direction:column;gap:11px;flex:1}
+  .ritem{border-left:2px solid var(--line);padding-left:11px}
+  .ritem.o{border-color:var(--cool)}.ritem.i{border-color:var(--signal)}
+  .rlab{display:flex;align-items:center;gap:7px;font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:13px;letter-spacing:.01em}
+  .ritem.o .rlab{color:var(--cool)}.ritem.i .rlab{color:var(--signal)}
+  .rbadge{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:4px;font-weight:600}
+  .ritem.o .rbadge{background:rgba(84,202,187,.14);color:var(--cool);border:1px solid rgba(84,202,187,.3)}
+  .ritem.i .rbadge{background:rgba(243,177,60,.16);color:var(--signal);border:1px solid rgba(243,177,60,.34)}
+  .rtxt{font-size:10.5px;line-height:1.55;color:var(--muted);margin-top:5px}
+  .rtxt b{color:var(--text);font-weight:500}
+  .subs{display:flex;flex-direction:column;gap:6px;margin-top:1px}
+  .subs .sl{font-size:10px;line-height:1.5;color:var(--muted);padding-left:13px;position:relative}
+  .subs .sl::before{content:"";position:absolute;left:0;top:7px;width:5px;height:1px;background:var(--signal-deep)}
+  .subs .sl b{color:var(--text);font-weight:500}
+  .afan{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--cool);margin-bottom:2px}
+  .alist{display:flex;flex-direction:column;gap:8px}
+  .aitem{border-left:2px solid var(--signal-deep);padding-left:11px}
+  .aitem .ai-n{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:11.5px;color:var(--signal)}
+  .aitem .ai-d{font-size:9.5px;color:var(--muted);margin-top:2px;line-height:1.4}
+  .stage.human{background:repeating-linear-gradient(45deg,rgba(138,160,180,.04) 0 9px,transparent 9px 18px),linear-gradient(180deg,var(--panel),var(--panel-2));border-style:dashed;border-color:rgba(138,160,180,.4)}
+  .stage.human .pin{background:var(--human);box-shadow:0 0 0 4px rgba(138,160,180,.12)}
+  .stage.human .role{color:var(--human)}.stage.human li::before{background:var(--human)}.stage.human .sk span{color:var(--human)}
+  .conn{flex:0 0 40px;display:flex;align-items:center;justify-content:center;position:relative}
+  .conn .bar{height:1px;width:100%;background:linear-gradient(90deg,transparent,var(--signal-deep),transparent)}
+  .conn .h{position:absolute;right:8px;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:8px solid var(--signal)}
+
+  /* timeline (from Refine 3) */
+  .tlwrap{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,var(--panel),var(--panel-2));padding:36px 34px 28px;margin-bottom:18px;animation:rise .7s .28s both}
+  .tl{display:grid;grid-template-columns:158px repeat(12,1fr);grid-template-rows:86px 42px 86px 48px 24px;column-gap:7px;row-gap:7px;position:relative}
+  .gut{display:flex;flex-direction:column;justify-content:center;padding-right:14px;border-right:1px solid var(--line-soft)}
+  .gut .gl{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:15px}
+  .gut .gx{font-size:9.5px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-top:5px;line-height:1.4}
+  .gut.o .gl{color:var(--cool)}.gut.i .gl{color:var(--signal)}
+  .blk{height:100%;border-radius:9px;display:flex;flex-direction:column;justify-content:center;padding:10px 15px;z-index:2;overflow:hidden;position:relative}
+  .blk .bt{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:14px}
+  .blk .bx{font-size:9.5px;color:var(--muted);margin-top:3px;line-height:1.4}
+  .blk .ctag{font-family:"IBM Plex Mono",monospace;font-size:9.5px;margin-top:7px;letter-spacing:.04em}
+  .plan{background:rgba(84,202,187,.09);border:1px solid rgba(84,202,187,.32)}.plan .bt{color:var(--cool)}
+  .plan .ctag{color:rgba(84,202,187,.7)}
+  .plan.pre{background:rgba(84,202,187,.05);border-style:dashed}
+  .plan.cn{-webkit-mask-image:linear-gradient(90deg,#000 58%,transparent);mask-image:linear-gradient(90deg,#000 58%,transparent)}
+  .bld{background:rgba(243,177,60,.12);border:1px solid rgba(243,177,60,.36)}.bld .bt{color:var(--signal)}
+  .vfy{background:rgba(243,177,60,.04);border:1px solid rgba(243,177,60,.26)}.vfy .bt{color:var(--signal-deep)}
+  .shp{background:repeating-linear-gradient(45deg,rgba(138,160,180,.07) 0 8px,transparent 8px 16px);border:1px dashed rgba(138,160,180,.5)}.shp .bt{color:var(--human)}
+  .bld .ctag,.vfy .ctag{color:var(--signal-deep)}.shp .ctag{color:var(--human)}
+  .entry{background:rgba(84,202,187,.06);border:1px dashed rgba(84,202,187,.4);border-radius:9px;display:flex;flex-direction:column;justify-content:center;padding:10px 12px;z-index:2}
+  .entry .bt{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:13px;color:var(--cool)}
+  .entry .bx{font-size:8.5px;color:var(--dim);margin-top:4px;text-transform:uppercase;letter-spacing:.08em;line-height:1.4}
+  .bld.sm{border-left:2px dashed var(--human)}
+  .smt{position:absolute;top:-23px;left:0;font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--human);white-space:nowrap;background:var(--panel);padding:2px 6px;border:1px solid var(--line-soft);border-radius:4px}
+  .bt2{display:flex;flex-direction:column;align-items:center;z-index:3}
+  .bt2 .k{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--signal);border:1px solid rgba(243,177,60,.4);border-radius:5px;padding:3px 7px;background:var(--panel);white-space:nowrap}
+  .bt2 .l{width:1px;flex:1;background:var(--signal)}.bt2 .a{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid var(--signal)}
+  .win{grid-row:1/4;z-index:1;border-radius:9px;background:repeating-linear-gradient(45deg,rgba(243,177,60,.05) 0 10px,transparent 10px 20px),rgba(84,202,187,.045);border-left:1px dashed rgba(84,202,187,.45);border-right:1px dashed rgba(84,202,187,.45);pointer-events:none}
+  .brace{grid-row:4/5;display:flex;align-items:center;justify-content:center;position:relative;border-top:2px solid var(--cool);border-left:2px solid var(--cool);border-right:2px solid var(--cool);margin-top:4px}
+  .brace::before,.brace::after{content:"";position:absolute;top:0;width:2px;height:7px;background:var(--cool)}
+  .brace::before{left:0}.brace::after{right:0}
+  .brace span{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--cool);background:var(--panel);padding:4px 14px;transform:translateY(14px)}
+  .axl{grid-row:5/6;display:flex;align-items:center;gap:10px;color:var(--dim);font-size:9.5px;letter-spacing:.3em;text-transform:uppercase}
+  .axl .r{flex:1;height:1px;background:repeating-linear-gradient(90deg,var(--dim) 0 2px,transparent 2px 8px);opacity:.5}
+  .tlcap{font-size:12px;color:var(--muted);line-height:1.8;margin-top:24px;border-left:2px solid var(--signal);padding-left:18px;max-width:120ch}
+  .tlcap b{color:var(--text);font-weight:500}
+
+  /* inside the two fan-out stages */
+  .grid2{display:grid;grid-template-columns:1.18fr 1fr;gap:18px;margin:0 0 40px}
+  .ex{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:var(--radius);padding:24px 26px 26px;animation:rise .7s .34s both}
+  .ex-h{display:flex;align-items:baseline;gap:12px;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--line-soft)}
+  .ex-h .t{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:17px;color:#eef3f7}
+  .ex-h .t code{color:var(--signal)}
+  .ex-h .sub{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-left:auto}
+  .node{border:1px solid var(--line);border-radius:10px;padding:12px 15px;background:rgba(255,255,255,.018)}
+  .node .nh{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:13px;color:var(--text);display:flex;align-items:center;gap:9px}
+  .badge{font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;border-radius:5px;font-weight:600}
+  .badge.ro{background:rgba(84,202,187,.14);color:var(--cool);border:1px solid rgba(84,202,187,.3)}
+  .badge.wr{background:rgba(243,177,60,.16);color:var(--signal);border:1px solid rgba(243,177,60,.34)}
+  .node .nd{font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.55}
+  .vflow{display:flex;flex-direction:column;align-items:center}
+  .varrow{width:1px;height:16px;background:linear-gradient(var(--signal-deep),transparent);position:relative}
+  .varrow::after{content:"";position:absolute;bottom:0;left:50%;transform:translateX(-50%);border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid var(--signal)}
+  .vflow .node{width:100%;margin:0}
+  .streams{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%}
+  .stream{border:1px dashed rgba(243,177,60,.32);border-radius:8px;padding:9px 8px;text-align:center;font-size:10px;color:var(--signal);letter-spacing:.04em;background:rgba(243,177,60,.04)}
+  .stream small{display:block;color:var(--dim);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;margin-top:3px}
+  .meta-row{font-size:9.5px;color:var(--dim);letter-spacing:.14em;text-transform:uppercase;text-align:center;width:100%;margin:12px 0 10px}
+  .choke{width:100%;border:1px solid rgba(243,177,60,.34);border-radius:8px;background:repeating-linear-gradient(45deg,rgba(243,177,60,.06) 0 8px,transparent 8px 16px);padding:11px 14px;text-align:center}
+  .choke .ct{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:11px;color:var(--signal);letter-spacing:.08em}
+  .choke .cd{font-size:9.5px;color:var(--muted);margin-top:4px}
+  .commit{width:100%;text-align:center;font-size:10.5px;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;background:rgba(255,255,255,.02)}
+  .commit code{color:var(--signal)}
+  .caption{font-size:10px;color:var(--dim);line-height:1.7;margin-top:15px}
+  .agents{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+  .agent{border:1px solid var(--line);border-radius:9px;padding:11px 13px;background:rgba(255,255,255,.018)}
+  .agent .an{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:12px;color:var(--text)}
+  .agent .ax{font-size:9.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+  .fan-note{font-size:9.5px;color:var(--cool);letter-spacing:.14em;text-transform:uppercase;text-align:center;margin-bottom:14px}
+  .compose{display:flex;flex-direction:column;gap:9px}
+  .cline{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text)}
+  .cline .lk{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--cool);border:1px solid rgba(84,202,187,.3);border-radius:5px;padding:4px 8px;white-space:nowrap}
+  .cline em{color:var(--muted);font-style:normal;font-size:10px}
+  .guard{margin-top:15px;padding:11px 13px;border:1px solid var(--line-soft);border-radius:8px;font-size:10px;color:var(--muted);line-height:1.7;background:rgba(255,255,255,.012)}
+  .guard b{color:var(--signal)}
+
+  .return{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(90deg,rgba(84,202,187,.05),rgba(243,177,60,.04));padding:15px 26px;display:flex;align-items:center;gap:22px;margin-bottom:34px;animation:rise .7s .4s both}
+  .return .lm{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--cool);white-space:nowrap}
+  .return .tk{flex:1;height:1px;background:repeating-linear-gradient(90deg,var(--cool) 0 7px,transparent 7px 13px);opacity:.6;position:relative}
+  .return .tk::before{content:"";position:absolute;left:-2px;top:50%;transform:translateY(-50%);border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:9px solid var(--cool)}
+  .return .pl{font-size:11px;color:var(--text);white-space:nowrap}.return .pl code{color:var(--signal)}
+
+  .inv{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;animation:rise .7s .46s both}
+  .rule{background:var(--panel-2);padding:18px 20px}
+  .rule .rn{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:12px;color:var(--signal);margin-bottom:8px}
+  .rule p{font-size:10.5px;line-height:1.65;color:var(--muted)}.rule p b{color:var(--text);font-weight:500}
+
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header>
+    <div>
+      <div class="kicker">Claude Code / Operating Loop</div>
+      <h1>The Build <span class="s">Loop</span></h1>
+    </div>
+    <div>
+      <p class="lede">How one builder ships across many sessions. <b>One writer per checkout.</b> The orchestrator plans the next batch while the implementer builds the current one.</p>
+      <div class="chips"><span class="chip">Multi-session</span><span class="chip">Single-writer</span><span class="chip">Plan + build overlap</span><span class="chip">Verify before ship</span></div>
+    </div>
+  </header>
+
+  <div class="tag"><b>Session N</b> &nbsp;&middot;&nbsp; the five moves</div>
+
+  <div class="pipeline">
+    <div class="stage">
+      <div class="idx"><span>01</span><span class="pin"></span></div>
+      <div class="cmd"><span class="s">/</span>pickup</div>
+      <div class="role">Resume a prior session</div>
+      <div class="roles">
+        <div class="afan">reads, to resume safely</div>
+        <div class="subs">
+          <div class="sl">Reads <b>HANDOFF.md</b>, parses its Date for true age</div>
+          <div class="sl">Freshness by age: <b>&lt;12h</b> light, <b>12h to 14d</b> standard, <b>14d+</b> full plus stale flag</div>
+          <div class="sl">Verifies every <b>file:line</b> claim against reality, reports drift</div>
+          <div class="sl">Hands control back, <b>waits</b> for you to confirm focus</div>
+        </div>
+      </div>
+      <div class="sk">skill <span>pickup</span> &middot; verified resume</div>
+    </div>
+    <div class="conn"><span class="bar"></span><span class="h"></span></div>
+    <div class="stage">
+      <div class="idx"><span>02</span><span class="pin"></span></div>
+      <div class="cmd"><span class="s">/</span>parallelize</div>
+      <div class="role">The build engine. Two agents, one writer.</div>
+      <div class="roles">
+        <div class="ritem o">
+          <div class="rlab">orchestrator <span class="rbadge">read-only</span></div>
+          <div class="rtxt">Plans the file-disjoint split and verifies. <b>Never writes the repo.</b></div>
+        </div>
+        <div class="ritem i">
+          <div class="rlab">implementer <span class="rbadge">single writer</span></div>
+          <div class="rtxt">The single writer. <b>Fans out concurrent subagents</b>, spun up as needed.</div>
+        </div>
+        <div class="subs">
+          <div class="sl"><b>Subagents</b> spun up on demand, one per file-disjoint stream, run concurrently</div>
+          <div class="sl">Choke points and the <b>one commit</b> stay serial on the main thread</div>
+        </div>
+      </div>
+      <div class="sk">skill <span>parallelize</span> &middot; two agents</div>
+    </div>
+    <div class="conn"><span class="bar"></span><span class="h"></span></div>
+    <div class="stage">
+      <div class="idx"><span>03</span><span class="pin"></span></div>
+      <div class="cmd"><span class="s">/</span>preflight</div>
+      <div class="role">Verification gate, scoped to the diff</div>
+      <div class="roles">
+        <div class="afan">fans out 4 agents, in parallel</div>
+        <div class="alist">
+          <div class="aitem"><div class="ai-n">build-validator</div><div class="ai-d">pytest, alembic, tsc, build, lint</div></div>
+          <div class="aitem"><div class="ai-n">architecture-reviewer</div><div class="ai-d">ADRs, CLAUDE.md, data model fit</div></div>
+          <div class="aitem"><div class="ai-n">simplicity-reviewer</div><div class="ai-d">runs the simplify skill</div></div>
+          <div class="aitem"><div class="ai-n">e2e-browser</div><div class="ai-d">Playwright, drives the real UI</div></div>
+        </div>
+        <div class="subs">
+          <div class="sl">Iterate to green: <b>auto-fix mechanical</b>, surface behavioral</div>
+          <div class="sl">Composes simplify, predeploy. <b>Never ships</b></div>
+        </div>
+      </div>
+      <div class="sk">skill <span>preflight</span> &middot; 4 agents</div>
+    </div>
+    <div class="conn"><span class="bar"></span><span class="h"></span></div>
+    <div class="stage human">
+      <div class="idx"><span>04</span><span class="pin"></span></div>
+      <div class="cmd">ship</div>
+      <div class="role">The human checkpoint</div>
+      <ul><li>You <b>commit, push, deploy</b></li><li>No skill ships. <b>This line is yours</b></li></ul>
+      <div class="sk">your hands &middot; <span>not a skill</span></div>
+    </div>
+    <div class="conn"><span class="bar"></span><span class="h"></span></div>
+    <div class="stage">
+      <div class="idx"><span>05</span><span class="pin"></span></div>
+      <div class="cmd"><span class="s">/</span>handoff</div>
+      <div class="role">Snapshot for the next session</div>
+      <div class="roles">
+        <div class="afan">writes, for the next session</div>
+        <div class="subs">
+          <div class="sl">Writes <b>HANDOFF.md</b>, overwrite, not append</div>
+          <div class="sl">Wires the CLAUDE.md continuity line, <b>prunes it to a 200-line budget</b></div>
+          <div class="sl">Saves <b>selective memories</b></div>
+          <div class="sl">Emits a self-contained <b>Resume prompt</b></div>
+        </div>
+      </div>
+      <div class="sk">skill <span>handoff</span> &middot; session snapshot</div>
+    </div>
+  </div>
+
+  <div class="tag"><b>Same five moves</b> &nbsp;&middot;&nbsp; running on one clock</div>
+
+  <div class="tlwrap">
+    <div class="tl">
+      <div class="win" style="grid-column:3/9;"></div>
+
+      <div class="gut o" style="grid-row:1/2;grid-column:1/2;"><div class="gl">ORCHESTRATOR</div><div class="gx">plans, read-only<br>parallelize</div></div>
+      <div class="blk plan pre" style="grid-row:1/2;grid-column:2/3;"><div class="bt">PLAN A</div><div class="ctag">/parallelize</div></div>
+      <div class="blk plan" style="grid-row:1/2;grid-column:3/9;"><div class="bt">PLAN B</div><div class="bx">next batch, prepared live while A builds, verifies, ships</div><div class="ctag">/parallelize &middot; orchestrator</div></div>
+      <div class="blk plan cn" style="grid-row:1/2;grid-column:9/14;"><div class="bt">PLAN C</div><div class="bx">always one ahead</div></div>
+
+      <div class="bt2" style="grid-row:2/3;grid-column:3/4;"><span class="k">{ } kickoff</span><span class="l"></span><span class="a"></span></div>
+      <div class="bt2" style="grid-row:2/3;grid-column:9/10;"><span class="k">{ } kickoff</span><span class="l"></span><span class="a"></span></div>
+
+      <div class="gut i" style="grid-row:3/4;grid-column:1/2;"><div class="gl">IMPLEMENTER</div><div class="gx">the single writer<br>one checkout</div></div>
+      <div class="entry" style="grid-row:3/4;grid-column:2/3;"><div class="bt">/pickup</div><div class="bx">cold start<br>resume HANDOFF.md</div></div>
+      <div class="blk bld" style="grid-row:3/4;grid-column:3/7;"><div class="bt">BUILD A</div><div class="bx">subagent fan-out</div><div class="ctag">/parallelize &middot; implementer</div></div>
+      <div class="blk vfy" style="grid-row:3/4;grid-column:7/8;"><div class="bt">PREFLIGHT A</div><div class="ctag">/preflight</div></div>
+      <div class="blk shp" style="grid-row:3/4;grid-column:8/9;"><div class="bt">SHIP A</div><div class="ctag">you</div></div>
+      <div class="blk bld sm" style="grid-row:3/4;grid-column:9/13;"><span class="smt">/handoff snapshots A &middot; fresh implementer session</span><div class="bt">BUILD B</div><div class="bx">subagent fan-out</div><div class="ctag">/parallelize &middot; implementer</div></div>
+      <div class="blk vfy cn" style="grid-row:3/4;grid-column:13/14;"><div class="bt">PREFLIGHT B</div><div class="ctag">/preflight</div></div>
+
+      <div class="brace" style="grid-column:3/9;"><span>one wall-clock window</span></div>
+      <div class="axl" style="grid-column:2/14;">Time<span class="r"></span></div>
+    </div>
+    <p class="tlcap">The shaded span is <b>one wall-clock window</b>. The orchestrator plans the next batch while the implementer builds, verifies, and ships the current one. The pause while a plan is written is your <b>review time</b>, not dead time, and the build never stops.</p>
+  </div>
+
+  <div class="tag"><b>Inside the two fan-out stages</b> &nbsp;&middot;&nbsp; what happens within a build</div>
+
+  <div class="grid2">
+
+    <div class="ex">
+      <div class="ex-h"><span class="t">Inside <code>/parallelize</code></span><span class="sub">implementer, max concurrency</span></div>
+      <div class="vflow">
+        <div class="node">
+          <div class="nh">orchestrator <span class="badge ro">read-only</span></div>
+          <div class="nd">Plans the maximal decomposition and verifies. Never writes the repo. Runs concurrently in its own session, which is why two live sessions do not collide.</div>
+        </div>
+        <div class="varrow"></div>
+        <div class="node">
+          <div class="nh">implementer <span class="badge wr">single writer</span></div>
+          <div class="nd">Decomposes into the greatest set of file-disjoint workstreams, then launches them in one batch.</div>
+        </div>
+        <div class="varrow"></div>
+        <div class="streams">
+          <div class="stream">Stream 1<small>subagent</small></div>
+          <div class="stream">Stream 2<small>subagent</small></div>
+          <div class="stream">Stream 3<small>subagent</small></div>
+          <div class="stream">Stream n<small>subagent</small></div>
+        </div>
+        <div class="meta-row">file-disjoint &middot; concurrent &middot; report up, do not apply</div>
+        <div class="choke">
+          <div class="ct">CHOKE POINTS &middot; SERIAL, MAIN THREAD ONLY</div>
+          <div class="cd">shared contract &middot; registry / index &middot; security, schema, product</div>
+        </div>
+        <div class="varrow"></div>
+        <div class="commit">integrate &rarr; preflight subagent &rarr; <code>one commit</code> &rarr; signal orchestrator: SHA X</div>
+      </div>
+      <p class="caption">Subagents never commit, push, or deploy. Security, schema, and product changes are reported up and applied by the main thread. Speed has two axes: this fan-out is depth, the timeline above is time.</p>
+    </div>
+
+    <div class="ex">
+      <div class="ex-h"><span class="t">Inside <code>/preflight</code></span><span class="sub">scoped to the diff</span></div>
+      <div class="agents">
+        <div class="agent"><div class="an">build-validator</div><div class="ax">pytest, alembic, tsc, build, lint</div></div>
+        <div class="agent"><div class="an">architecture-reviewer</div><div class="ax">ADRs, CLAUDE.md, data model fit</div></div>
+        <div class="agent"><div class="an">simplicity-reviewer</div><div class="ax">runs the simplify skill</div></div>
+        <div class="agent"><div class="an">e2e-browser</div><div class="ax">Playwright, real surface drive</div></div>
+      </div>
+      <div class="fan-note">four subagents, one parallel batch</div>
+      <div class="compose">
+        <div class="cline"><span class="lk">composes</span> <span><b style="color:var(--text);font-weight:500">simplify</b> <em>always, inside simplicity-reviewer</em></span></div>
+        <div class="cline"><span class="lk">composes</span> <span><b style="color:var(--text);font-weight:500">predeploy</b> scan <em>when deploy target is Render</em></span></div>
+        <div class="cline"><span class="lk">invoked by</span> <span><b style="color:var(--text);font-weight:500">parallelize</b> orchestrator <em>as its verify pass</em></span></div>
+      </div>
+      <div class="guard"><b>Iterate to green, max 3.</b> Auto-fix mechanical, surface behavioral for your decision. Never ships. The deploy-config class it cannot see locally is exactly what the composed predeploy scan catches.</div>
+    </div>
+
+  </div>
+
+  <div class="return">
+    <span class="lm">Loop back</span>
+    <span class="pl"><code>HANDOFF.md</code> + Resume prompt</span>
+    <span class="tk"></span>
+    <span class="pl">Session N+1 resumes at <code>/pickup</code>, or from the orchestrator's next kickoff</span>
+  </div>
+
+  <div class="inv">
+    <div class="rule"><div class="rn">One writer per checkout</div><p>Only the implementer writes. The orchestrator runs <b>beside it, read-only</b>. No collision.</p></div>
+    <div class="rule"><div class="rn">Two axes of speed</div><p><b>Depth</b>: subagent fan-out. <b>Time</b>: plan the next while building the current.</p></div>
+    <div class="rule"><div class="rn">Verification is sequential</div><p>One <b>Docker, pytest, build</b> at a time. Commit, then verify.</p></div>
+    <div class="rule"><div class="rn">Every handoff prunes</div><p>CLAUDE.md held to a <b>200-line budget</b>. Lean context compounds.</p></div>
+  </div>
+
+</div>
+</body>
+</html>
