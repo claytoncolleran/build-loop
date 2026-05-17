@@ -175,6 +175,28 @@
   .rule .rn{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:12px;color:var(--signal);margin-bottom:8px}
   .rule p{font-size:10.5px;line-height:1.65;color:var(--muted)}.rule p b{color:var(--text);font-weight:500}
 
+  /* narrated walkthrough player */
+  .player{display:flex;align-items:center;gap:24px;border:1px solid var(--line);border-left:3px solid var(--signal);border-radius:var(--radius);background:linear-gradient(90deg,rgba(243,177,60,.05),rgba(84,202,187,.035));padding:20px 26px;margin-bottom:34px;animation:rise .7s .12s both}
+  .play{flex:0 0 auto;width:58px;height:58px;border-radius:50%;border:1px solid rgba(243,177,60,.4);background:radial-gradient(circle at 50% 38%,rgba(243,177,60,.22),rgba(243,177,60,.06));color:var(--signal);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 5px rgba(243,177,60,.08);transition:box-shadow .2s,transform .12s}
+  .play:hover{box-shadow:0 0 0 7px rgba(243,177,60,.12)}
+  .play:active{transform:scale(.95)}
+  .play:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+  .play svg{width:20px;height:20px;display:block}
+  .play .ic-pause{display:none}
+  .player.playing .ic-play{display:none}
+  .player.playing .ic-pause{display:block}
+  .pbody{flex:1;min-width:0}
+  .plabel{font-size:10px;letter-spacing:.32em;text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+  .ptitle{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:16px;color:#eef3f7;margin-bottom:13px}
+  .ptitle .s{color:var(--signal)}
+  .pscrub{position:relative;height:6px;border-radius:3px;background:rgba(150,180,210,.12);cursor:pointer}
+  .pscrub:focus-visible{outline:2px solid var(--signal);outline-offset:4px}
+  .pfill{position:absolute;left:0;top:0;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,var(--signal-deep),var(--signal))}
+  .phead{position:absolute;top:50%;left:0;width:11px;height:11px;border-radius:50%;background:var(--signal);transform:translate(-50%,-50%);box-shadow:0 0 0 4px rgba(243,177,60,.16);pointer-events:none}
+  .ptime{flex:0 0 auto;font-size:11px;letter-spacing:.06em;color:var(--muted);font-variant-numeric:tabular-nums}
+  .ptime b{color:var(--text);font-weight:500}
+  @media (max-width:680px){.player{flex-wrap:wrap;gap:16px}.ptime{order:3;width:100%;text-align:right}}
+
   @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
@@ -192,6 +214,23 @@
       <div class="chips"><span class="chip">Multi-session</span><span class="chip">Single-writer</span><span class="chip">Plan + build overlap</span><span class="chip">Verify before ship</span></div>
     </div>
   </header>
+
+  <div class="player" id="player">
+    <button class="play" id="playBtn" type="button" aria-label="Play narration">
+      <svg class="ic-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      <svg class="ic-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+    </button>
+    <div class="pbody">
+      <div class="plabel">Narrated walkthrough</div>
+      <div class="ptitle">The Claude Build <span class="s">Loop</span> &middot; software factory</div>
+      <div class="pscrub" id="scrub" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="pfill" id="fill"></div>
+        <div class="phead" id="head"></div>
+      </div>
+    </div>
+    <div class="ptime"><b id="cur">0:00</b> / <span id="dur">0:00</span></div>
+    <audio id="audio" preload="metadata" src="The_Claude_Build_Loop_software_factory.m4a"></audio>
+  </div>
 
   <div class="tag"><b>Session N</b> &nbsp;&middot;&nbsp; the five moves</div>
 
@@ -386,5 +425,29 @@
   </div>
 
 </div>
+<script>
+(function(){
+  var a=document.getElementById('audio'),p=document.getElementById('player'),
+      btn=document.getElementById('playBtn'),scrub=document.getElementById('scrub'),
+      fill=document.getElementById('fill'),head=document.getElementById('head'),
+      cur=document.getElementById('cur'),dur=document.getElementById('dur');
+  function fmt(s){if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2);}
+  function paint(){var pct=a.duration?a.currentTime/a.duration*100:0;fill.style.width=pct+'%';head.style.left=pct+'%';cur.textContent=fmt(a.currentTime);scrub.setAttribute('aria-valuenow',Math.round(pct));}
+  btn.addEventListener('click',function(){a.paused?a.play():a.pause();});
+  a.addEventListener('play',function(){p.classList.add('playing');btn.setAttribute('aria-label','Pause narration');});
+  a.addEventListener('pause',function(){p.classList.remove('playing');btn.setAttribute('aria-label','Play narration');});
+  a.addEventListener('loadedmetadata',function(){dur.textContent=fmt(a.duration);});
+  a.addEventListener('timeupdate',paint);
+  a.addEventListener('ended',function(){p.classList.remove('playing');});
+  function seekFromEvent(e){var r=scrub.getBoundingClientRect(),x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;var pct=Math.min(1,Math.max(0,x/r.width));if(a.duration)a.currentTime=pct*a.duration;paint();}
+  var dragging=false;
+  scrub.addEventListener('mousedown',function(e){dragging=true;seekFromEvent(e);});
+  window.addEventListener('mousemove',function(e){if(dragging)seekFromEvent(e);});
+  window.addEventListener('mouseup',function(){dragging=false;});
+  scrub.addEventListener('touchstart',function(e){seekFromEvent(e);},{passive:true});
+  scrub.addEventListener('touchmove',function(e){seekFromEvent(e);},{passive:true});
+  scrub.addEventListener('keydown',function(e){if(!a.duration)return;if(e.key==='ArrowRight'){a.currentTime=Math.min(a.duration,a.currentTime+5);paint();}else if(e.key==='ArrowLeft'){a.currentTime=Math.max(0,a.currentTime-5);paint();}else if(e.key===' '||e.key==='Enter'){e.preventDefault();a.paused?a.play():a.pause();}});
+})();
+</script>
 </body>
 </html>
