@@ -199,6 +199,56 @@
 
   @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+
+  /* ---------- responsive ---------- */
+  .tlm{display:none}
+  @media (max-width:980px){
+    body{padding:40px 28px 46px}
+    h1{font-size:clamp(40px,8vw,70px)}
+    header{gap:24px}
+    .grid2{grid-template-columns:1fr}
+    .econ .eg{grid-template-columns:1fr 1fr}
+    .inv{grid-template-columns:1fr 1fr}
+  }
+  @media (max-width:620px){
+    body{padding:clamp(18px,5vw,40px) clamp(16px,5vw,28px) 40px}
+    body::before{background-size:64px 64px,64px 64px;opacity:.55}
+    .sheet{max-width:100%}
+    header{flex-direction:column;align-items:flex-start;gap:18px;padding-bottom:20px;margin-bottom:26px}
+    h1{font-size:clamp(38px,12vw,60px)}
+    .lede{text-align:left;max-width:100%;font-size:12.5px}
+    .chips{justify-content:flex-start}
+    .player{flex-wrap:wrap;gap:14px 16px;padding:18px}
+    .pbody{flex:1 1 60%}
+    .ptime{order:3;width:100%;text-align:right;margin-top:-4px}
+    .tag{font-size:10px;letter-spacing:.22em}
+    /* 5-move pipeline -> vertical stack */
+    .pipeline{flex-direction:column;margin-bottom:30px}
+    .stage{padding:18px}
+    .conn{flex:0 0 26px;transform:rotate(90deg)}
+    /* timeline -> vertical flow */
+    .tlwrap.dk{display:none}
+    .tlm{display:block;padding:24px 18px 22px}
+    .tlm-lane{display:flex;flex-direction:column;gap:9px;padding:4px 0 6px}
+    .tlm-h{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:13px;letter-spacing:.02em;margin-bottom:6px}
+    .tlm-h small{display:block;font-family:"IBM Plex Mono",monospace;font-weight:400;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-top:4px}
+    .tlm-lane.o .tlm-h{color:var(--cool)}.tlm-lane.i .tlm-h{color:var(--signal)}
+    .tlm-card{border-radius:9px;padding:11px 14px}
+    .tlm-card .bt{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:14px;display:block}
+    .tlm-card em{display:block;font-style:normal;font-size:10px;color:var(--muted);margin-top:3px;line-height:1.5}
+    .tlm-card .ct{font-family:"IBM Plex Mono",monospace;font-size:9.5px;margin-top:6px;display:block;color:var(--signal-deep)}
+    .tlm-link{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-align:center;padding:8px 0}
+    .tlm-link::before,.tlm-link::after{content:"";display:block;width:1px;height:13px;margin:0 auto;background:linear-gradient(var(--signal-deep),transparent)}
+    .tlm-link::before{margin-bottom:7px}.tlm-link::after{height:0}
+    .tlm-window{margin-top:16px;text-align:center;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--cool);border:1px dashed rgba(84,202,187,.45);border-radius:8px;padding:10px;background:repeating-linear-gradient(45deg,rgba(84,202,187,.05) 0 9px,transparent 9px 18px)}
+    .tlm .tlcap{max-width:100%;font-size:11px;margin-top:18px}
+    /* multi-column blocks -> single */
+    .grid2,.econ .eg,.inv,.agents{grid-template-columns:1fr}
+    .streams{grid-template-columns:1fr 1fr}
+    .return{flex-direction:column;align-items:flex-start;gap:12px}
+    .return .tk{width:100%}
+    .tlcap{font-size:11px}
+  }
 </style>
 </head>
 <body>
@@ -319,7 +369,7 @@
 
   <div class="tag"><b>Same five moves</b> &nbsp;&middot;&nbsp; running on one clock</div>
 
-  <div class="tlwrap">
+  <div class="tlwrap dk">
     <div class="tl">
       <div class="win" style="grid-column:3/9;"></div>
 
@@ -343,6 +393,26 @@
       <div class="axl" style="grid-column:2/14;">Time<span class="r"></span></div>
     </div>
     <p class="tlcap">The shaded span is <b>one wall-clock window</b>. The orchestrator plans the next batch while the implementer builds, verifies, and ships the current one. The pause while a plan is written is your <b>review time</b>, not dead time, and the build never stops.</p>
+  </div>
+
+  <div class="tlwrap tlm">
+    <div class="tlm-lane o">
+      <div class="tlm-h">Orchestrator<small>read-only, plans ahead</small></div>
+      <div class="tlm-card plan"><span class="bt">PLAN A</span><span class="ct">/parallelize</span></div>
+      <div class="tlm-card plan"><span class="bt">PLAN B</span><em>next batch, prepared live while A builds, verifies, ships</em><span class="ct">/parallelize &middot; orchestrator</span></div>
+      <div class="tlm-card plan"><span class="bt">PLAN C</span><em>always one ahead</em></div>
+    </div>
+    <div class="tlm-link">kickoff</div>
+    <div class="tlm-lane i">
+      <div class="tlm-h">Implementer<small>single writer, one checkout</small></div>
+      <div class="tlm-card entry"><span class="bt">/pickup</span><em>cold start, resume HANDOFF.md</em></div>
+      <div class="tlm-card bld"><span class="bt">BUILD A</span><em>subagent fan-out</em><span class="ct">/parallelize &middot; implementer</span></div>
+      <div class="tlm-card vfy"><span class="bt">PREFLIGHT A</span><span class="ct">/preflight</span></div>
+      <div class="tlm-card shp"><span class="bt">SHIP A</span><em>you commit, push, deploy</em></div>
+      <div class="tlm-card bld"><span class="bt">BUILD B</span><em>fresh implementer session, /handoff snapshots A</em><span class="ct">/parallelize &middot; implementer</span></div>
+    </div>
+    <div class="tlm-window">one wall-clock window &middot; plan and build overlap</div>
+    <p class="tlcap">The two lanes run on <b>one clock</b>. The orchestrator plans the next batch while the implementer builds, verifies, and ships the current one. The pause while a plan is written is your <b>review time</b>, not dead time, and the build never stops.</p>
   </div>
 
   <div class="tag"><b>Inside the two fan-out stages</b> &nbsp;&middot;&nbsp; what happens within a build</div>
