@@ -155,6 +155,15 @@
   .guard{margin-top:15px;padding:11px 13px;border:1px solid var(--line-soft);border-radius:8px;font-size:10px;color:var(--muted);line-height:1.7;background:rgba(255,255,255,.012)}
   .guard b{color:var(--signal)}
 
+  .econ{border:1px solid var(--line);border-left:3px solid var(--signal);border-radius:var(--radius);background:linear-gradient(180deg,var(--panel),var(--panel-2));padding:24px 28px;margin-bottom:34px;animation:rise .7s .43s both}
+  .econ .eh{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:16px;color:#eef3f7;margin-bottom:7px}
+  .econ .es{font-size:11.5px;color:var(--muted);line-height:1.75;margin-bottom:18px;max-width:118ch}
+  .econ .es b{color:var(--text);font-weight:500}
+  .econ .eg{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .econ .ec{border:1px solid var(--line-soft);border-radius:10px;padding:15px 17px;background:rgba(255,255,255,.015)}
+  .econ .ec .et{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:12px;color:var(--signal);margin-bottom:7px;letter-spacing:.02em}
+  .econ .ec p{font-size:10.5px;color:var(--muted);line-height:1.6}
+  .econ .ec p b{color:var(--text);font-weight:500}
   .return{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(90deg,rgba(84,202,187,.05),rgba(243,177,60,.04));padding:15px 26px;display:flex;align-items:center;gap:22px;margin-bottom:34px;animation:rise .7s .4s both}
   .return .lm{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--cool);white-space:nowrap}
   .return .tk{flex:1;height:1px;background:repeating-linear-gradient(90deg,var(--cool) 0 7px,transparent 7px 13px);opacity:.6;position:relative}
@@ -348,6 +357,18 @@
       <div class="guard"><b>Iterate to green, max 3.</b> Auto-fix mechanical, surface behavioral for your decision. Never ships. The deploy-config class it cannot see locally is exactly what the composed predeploy scan catches.</div>
     </div>
 
+  </div>
+
+  <div class="tag"><b>Why it stays fast and cheap</b> &nbsp;&middot;&nbsp; the context economics</div>
+
+  <div class="econ">
+    <div class="eh">Small context is built into the loop, not bolted on</div>
+    <p class="es">Every cycle runs in a <b>fresh, scoped session</b>, never one conversation that balloons forever. The kickoff prompt, HANDOFF.md, and the pruned CLAUDE.md compress the handoff, so the next implementer starts <b>lean</b> instead of dragging the whole history forward.</p>
+    <div class="eg">
+      <div class="ec"><div class="et">Cheaper</div><p>Token cost scales with context size. Short sessions spend far fewer tokens for the same shipped work.</p></div>
+      <div class="ec"><div class="et">Faster and sharper</div><p>Lean context stays cache-friendly and avoids the quality decay that a bloated window causes.</p></div>
+      <div class="ec"><div class="et">You set the ceiling</div><p>A longer build buys more planning time. Keep plans tight and quickly buildable to keep every session small.</p></div>
+    </div>
   </div>
 
   <div class="return">
